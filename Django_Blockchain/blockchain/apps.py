@@ -4,6 +4,8 @@ from django.apps import AppConfig
 
 from blockchain.core.blockchain import Blockchain
 
+blockchain = None
+
 
 class BlockchainConfig(AppConfig):
     name = 'blockchain'
@@ -14,6 +16,7 @@ class BlockchainConfig(AppConfig):
         blockchain.mine()
 
     def ready(self, recall=False):
+        global blockchain
         blockchain = Blockchain()
 
         Thread(target=self.start_mine, args=(blockchain,)).start()
