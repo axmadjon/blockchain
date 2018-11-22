@@ -3,7 +3,7 @@ import json
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from blockchain import NODES
+from Django_Blockchain import NODES
 from blockchain.apps import blockchain
 from blockchain.core.blockchain import Block
 from blockchain.core.transaction import Transaction

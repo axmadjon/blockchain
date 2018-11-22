@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 from hashlib import sha256
@@ -6,15 +7,12 @@ from threading import Thread
 
 import requests as http
 
-from blockchain import NODES
+from Django_Blockchain import NODES, DATABASE_DIRS, BLOCK_TRANSACTION, BLOCK_DIFFICULTY
 from blockchain.core.transaction import Transaction, QueueTransaction
-
-BLOCK_TRANSACTION = 5
-BLOCK_DIFFICULTY = 6
+from blockchain.util import print_exception
 
 
 class Block:
-
     @staticmethod
     def parse(json):
         block = Block(index=json['index'], previous_hash=json['previous_hash'])
@@ -31,15 +29,15 @@ class Block:
         return block
 
     def to_json(self):
-        transactions = [item.to_json() for item in self.__transaction]
+        transactions = [json.loads(item.to_json()) for item in self.__transaction]
         return json.dumps({
-            'index', self.index,
-            'previous_hash', self.previous_hash,
-            'difficulty', self.difficulty,
-            'timestamp', self.timestamp,
-            'block_hash', self.block_hash,
-            'nonce', self.nonce,
-            'transactions', transactions
+            'index': self.index,
+            'previous_hash': self.previous_hash,
+            'difficulty': self.difficulty,
+            'timestamp': self.timestamp,
+            'block_hash': self.block_hash,
+            'nonce': self.nonce,
+            'transactions': transactions
         })
 
     def __init__(self, index, previous_hash):
@@ -125,6 +123,39 @@ class Blockchain:
         new_block.nonce = 0
         return new_block
 
+    def load_database(self, callback):
+        print('load all blocks in database')
+        try:
+            files = [v for v in os.listdir(DATABASE_DIRS) if v.endswith('.json')]
+            files.sort()
+
+            for file in files:
+                with open('{}/{}'.format(DATABASE_DIRS, file), 'r') as file_json:
+                    block_json = json.load(file_json)
+                    block = Block.parse(block_json)
+                    self.add_block(block)
+
+            print('success load in database')
+        except:
+            print_exception('Blockchain.load_database')
+
+        callback()
+
+    @classmethod
+    def save_block_database(cls, block):
+        try:
+            block_json = json.loads(block.to_json())
+            file_name = ('0' * 10) + str(block.index)
+            file_name = file_name[len(file_name) - 10:] + '.json'
+
+            if not os.path.exists(DATABASE_DIRS):
+                os.makedirs(DATABASE_DIRS)
+
+            with open('{}/{}'.format(DATABASE_DIRS, file_name), 'w') as file_json:
+                json.dump(block_json, file_json)
+        except:
+            print_exception('Blockchain.save_block_database')
+
     def add_block(self, block):
         if not isinstance(block, Block):
             return False
@@ -132,6 +163,7 @@ class Blockchain:
         if self.last_chain().index == (block.index - 1) \
                 and block.is_valid() and block.pow():
             self.chains.append(block)
+            self.save_block_database(block)
             return True
 
         return False

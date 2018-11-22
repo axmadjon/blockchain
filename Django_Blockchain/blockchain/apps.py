@@ -12,11 +12,13 @@ class BlockchainConfig(AppConfig):
     verbose_name = "Django Blockchain"
 
     @classmethod
-    def start_mine(cls, blockchain):
+    def start_mine(cls):
+        global blockchain
         blockchain.mine()
 
     def ready(self, recall=False):
         global blockchain
         blockchain = Blockchain()
 
-        Thread(target=self.start_mine, args=(blockchain,)).start()
+        callback = lambda: Thread(target=self.start_mine).start()
+        Thread(target=blockchain.load_database, args=(callback,)).start()
