@@ -35,8 +35,8 @@ else:
     DATABASE_DIRS = local_config.get("db_dirs")
 
     media_config = dict(config.items("SETTING"))
-    BLOCK_TRANSACTION = int(media_config.get("block_difficulty"))
-    BLOCK_DIFFICULTY = int(media_config.get("block_transaction"))
+    BLOCK_TRANSACTION = int(media_config.get("block_transaction"))
+    BLOCK_DIFFICULTY = int(media_config.get("block_difficulty"))
 
 if not os.path.exists(DATABASE_DIRS):
     os.makedirs(DATABASE_DIRS)
