@@ -136,6 +136,13 @@ class Blockchain:
                     self.add_block(block)
 
             print('success load in database')
+
+            print('load database in server')
+
+            self.synchronization()
+
+            print('success load database in server')
+
         except:
             print_exception('Blockchain.load_database')
 
@@ -215,7 +222,7 @@ class Blockchain:
                     if node_last_block.index > last_block.index:
                         self.load_all_blocks(nod)
             except:
-                pass
+                print_exception('Blockchain.synchronization')
 
     def load_all_blocks(self, node):
         try:
