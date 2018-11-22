@@ -212,15 +212,14 @@ class Blockchain:
                 if response.ok:
                     node_last_block = Block.parse(json.loads(response.text))
 
-                    if node_last_block.index > last_block:
+                    if node_last_block.index > last_block.index:
                         self.load_all_blocks(nod)
             except:
                 pass
 
     def load_all_blocks(self, node):
         try:
-            data_json = {'start_index': self.last_chain().index}
-            resp = http.post('{}/{}'.format(node, 'node&load_blocks'), json=data_json)
+            resp = http.post('{}/{}'.format(node, 'node&load_blocks'), json={'start_index': self.last_chain().index})
             if resp.ok:
                 blocks = [Block.parse(item) for item in json.loads(resp.text)]
                 for b in blocks:

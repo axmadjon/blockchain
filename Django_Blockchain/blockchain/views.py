@@ -26,14 +26,11 @@ def check_and_add_block(block, recall=False):
         return check_and_add_block(block=block, recall=True)
 
 
-def load_blocks(json):
-    start_index = json['start_index']
-    end_index = json['end_index']
+def load_blocks_in_blockchain(req_json):
+    start_index = req_json['start_index']
+    end_index = req_json.get('end_index', blockchain.last_chain().index)
 
-    if not end_index:
-        end_index = blockchain.last_chain().index
-
-    return [block for block in blockchain.chains if start_index < block.index < end_index]
+    return [json.loads(block.to_json()) for block in blockchain.chains if start_index < block.index < end_index]
 
 
 @csrf_exempt
@@ -48,7 +45,7 @@ def load_last_block(request):
 
 @csrf_exempt
 def load_blocks(request):
-    results = load_blocks(json.loads(request.body))
+    results = load_blocks_in_blockchain(json.loads(request.body))
     return HttpResponse(json.dumps(results), content_type='application/json; charset=utf-8', status=200)
 
 
@@ -61,6 +58,6 @@ def add_transaction(request):
 
 @csrf_exempt
 def add_new_block(request):
-    blockchain.synchronization()
+    # blockchain.synchronization()
     block = Block.parse(json.loads(request.body))
     return check_and_add_block(block)
