@@ -7,7 +7,7 @@ from threading import Thread
 
 import requests as http
 
-from Django_Blockchain import NODES, DATABASE_DIRS, BLOCK_TRANSACTION, BLOCK_DIFFICULTY
+from Django_Blockchain import NODES, DATABASE_DIRS, BLOCK_TRANSACTION, BLOCK_DIFFICULTY, BLOCK_SECOND
 from blockchain.core.transaction import Transaction, QueueTransaction
 from blockchain.util import print_exception
 
@@ -84,13 +84,20 @@ class Block:
     def is_valid(self):
         return self.block_hash.startswith('0' * self.difficulty)
 
-    def start_find_pow(self):
+    def start_find_pow(self, load_last_block=None):
         transaction_list = [tx.hash_tx() for tx in self.__transaction]
 
         start = time.time()
 
         for nonce in range(sys.maxsize):
             self.nonce = nonce
+            self.timestamp = int(time.time() * 1000.0)
+
+            if nonce % 100000 == 0:
+                last_block = load_last_block()
+                if last_block.index != self.index - 1:
+                    print('last block has change')
+                    return False
 
             data_block = json.dumps([self.index,
                                      self.previous_hash,
@@ -167,6 +174,13 @@ class Blockchain:
         if not isinstance(block, Block):
             return False
 
+        last_block = self.last_chain()
+        if last_block.index == block.index and last_block.block_hash == block.block_hash:
+            return True
+
+        if last_block.index != 0 and BLOCK_SECOND > int(time.time()) - int(last_block.timestamp / 1000.0):
+            return False
+
         if self.last_chain().index == (block.index - 1) \
                 and block.is_valid() and block.pow():
             self.chains.append(block)
@@ -195,17 +209,18 @@ class Blockchain:
             else:
                 break
 
-        if new_block.start_find_pow():
-            self.synchronization()
-            if self.add_block(new_block):
+        if new_block.start_find_pow(lambda: self.last_chain()):
+            if BLOCK_SECOND <= int(time.time()) - int(last_block.timestamp / 1000.0):
+                self.synchronization()
+                if self.add_block(new_block):
 
-                if not self.send_block_all_nodes(new_block):
-                    print("######### ERROR NODE NOT ADDED BLOCK #########")
+                    if not self.send_block_all_nodes(new_block):
+                        print("######### ERROR NODE NOT ADDED BLOCK #########")
 
-                for index in removing_txs:
-                    self.unconfirmed_transaction.pop(index)
-            else:
-                print('cannot add block in chain')
+                    for index in removing_txs:
+                        self.unconfirmed_transaction.pop(index)
+                else:
+                    print('cannot add block in chain')
         else:
             print('not find block hash')
 
@@ -247,4 +262,5 @@ class Blockchain:
                     self.synchronization()
             except:
                 print('error send_block_all_nodes')
-            return True
+
+        return True

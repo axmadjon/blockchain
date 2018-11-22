@@ -9,6 +9,7 @@ PROP_PATH = os.path.join(BASE_DIR, '.properties')
 NODES = []
 DATABASE_DIRS = os.path.join(BASE_DIR, 'db_blockchain')
 
+BLOCK_SECOND = 60
 BLOCK_TRANSACTION = 5
 BLOCK_DIFFICULTY = 5
 
@@ -21,6 +22,7 @@ if not os.path.exists(PROP_PATH):
                 "db_dirs={}\n\n"
 
                 "[SETTING]\n"
+                "block_second=60\n"
                 "block_difficulty=5\n"
                 "block_transaction=5".format(DATABASE_DIRS))
 else:
@@ -35,8 +37,11 @@ else:
     DATABASE_DIRS = local_config.get("db_dirs")
 
     media_config = dict(config.items("SETTING"))
+    BLOCK_SECOND = int(media_config.get("block_second", BLOCK_SECOND))
     BLOCK_TRANSACTION = int(media_config.get("block_transaction"))
     BLOCK_DIFFICULTY = int(media_config.get("block_difficulty"))
+
+NODES = [node for node in NODES if node.startswith('http')]
 
 if not os.path.exists(DATABASE_DIRS):
     os.makedirs(DATABASE_DIRS)

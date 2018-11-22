@@ -42,7 +42,7 @@ class QueueTransaction(Transaction):
     def __init__(self, passport_serial, queue_number):
         super().__init__(TRANSACTION_QUEUE)
 
-        self.timestamp = time() * 1000.0
+        self.timestamp = int(time() * 1000.0)
         self.passport_serial = passport_serial
         self.queue_number = queue_number
 

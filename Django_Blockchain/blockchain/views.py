@@ -3,13 +3,16 @@ import json
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from Django_Blockchain import NODES
+from Django_Blockchain import NODES, BLOCK_DIFFICULTY
 from blockchain.apps import blockchain
 from blockchain.core.blockchain import Block
 from blockchain.core.transaction import Transaction
 
 
 def check_and_add_block(block, recall=False):
+    if block.difficulty < BLOCK_DIFFICULTY:
+        return HttpResponse('E', status=200)
+
     if blockchain.add_block(block):
         return HttpResponse('S', status=200)
 
@@ -58,6 +61,5 @@ def add_transaction(request):
 
 @csrf_exempt
 def add_new_block(request):
-    # blockchain.synchronization()
     block = Block.parse(json.loads(request.body))
     return check_and_add_block(block)
