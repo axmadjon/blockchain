@@ -42,6 +42,17 @@ def load_nodes(request):
 
 
 @csrf_exempt
+def register_nodes(request):
+    node_conf = json.loads(request.body)
+    node = node_conf['node']
+
+    if node.startswith('http') and node not in NODES:
+        NODES.append(node)
+
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
 def load_last_block(request):
     return HttpResponse(blockchain.last_chain().to_json(), content_type='application/json; charset=utf-8', status=200)
 

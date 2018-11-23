@@ -214,8 +214,7 @@ class Blockchain:
                 self.synchronization()
                 if self.add_block(new_block):
 
-                    if not self.send_block_all_nodes(new_block):
-                        print("######### ERROR NODE NOT ADDED BLOCK #########")
+                    self.send_block_all_nodes(new_block)
 
                     for index in removing_txs:
                         self.unconfirmed_transaction.pop(index)
@@ -227,40 +226,55 @@ class Blockchain:
         Thread(target=self.mine).start()
 
     def synchronization(self):
+        if len(NODES) == 0:
+            return
+
         last_block = self.last_chain()
+        large_node = ''
+        large_block = None
+
         for nod in NODES:
             try:
                 response = http.get('{}/{}'.format(nod, 'node&load_last_block'))
                 if response.ok:
                     node_last_block = Block.parse(json.loads(response.text))
-
-                    if node_last_block.index > last_block.index:
-                        self.load_all_blocks(nod)
+                    if not large_block or large_block.index < node_last_block.index:
+                        large_block = node_last_block
+                        large_node = nod
             except:
                 print_exception('Blockchain.synchronization')
+        try:
+            if large_block.index > last_block.index:
+                self.load_all_blocks(large_node)
+        except:
+            print_exception("Blockchain.synchronization.load_all_blocks")
 
     def load_all_blocks(self, node):
         try:
             resp = http.post('{}/{}'.format(node, 'node&load_blocks'), json={'start_index': self.last_chain().index})
-            if resp.ok:
-                blocks = [Block.parse(item) for item in json.loads(resp.text)]
-                for b in blocks:
-                    if not self.add_block(b):
-                        print('node block not added in blockchain, block have problem')
-                        return
+            if not resp.ok:
+                return
+
+            for item in [Block.parse(item) for item in json.loads(resp.text)]:
+                if not self.add_block(item):
+                    print('node block not added in blockchain, block have problem')
+                    return
         except:
             print('error load_all_blocks')
 
+    # SEND BLOCK #######################################################################################################
     def send_block_all_nodes(self, block):
+        if len(NODES) == 0:
+            return
+
         block_json = json.loads(block.to_json())
         for nod in NODES:
-            try:
-                resp = http.post('{}/{}'.format(nod, 'node&add_new_block'), json=block_json)
-                if resp.ok:
-                    return 'S' == resp.text
-                else:
-                    self.synchronization()
-            except:
-                print('error send_block_all_nodes')
+            Thread(target=self.send_block, args=(nod, block_json))
 
-        return True
+    def send_block(self, node, block_json, callback=None):
+        try:
+            resp = http.post('{}/{}'.format(node, 'node&add_new_block'), json=block_json)
+            if callback:
+                callback(resp.ok and 'S' == resp.text)
+        except:
+            print_exception("Blockchain.send_block")

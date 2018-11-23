@@ -7,6 +7,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROP_PATH = os.path.join(BASE_DIR, '.properties')
 
 NODES = []
+REGISTER_NODE = ''
 DATABASE_DIRS = os.path.join(BASE_DIR, 'db_blockchain')
 
 BLOCK_SECOND = 30
@@ -16,7 +17,8 @@ BLOCK_DIFFICULTY = 6
 if not os.path.exists(PROP_PATH):
     with open(PROP_PATH, 'w', encoding="utf-8") as f:
         f.write("[NETWORK]\n"
-                "nodes=\n\n"
+                "nodes=\n"
+                "register_node=\n\n"
 
                 "[LOCAL]\n"
                 "db_dirs={}\n\n"
@@ -32,6 +34,7 @@ else:
     # Server properties
     network_config = dict(config.items('NETWORK'))
     NODES = [item.strip() for item in network_config.get('nodes').split('|')]
+    REGISTER_NODE = network_config.get("register_node")
 
     local_config = dict(config.items("LOCAL"))
     DATABASE_DIRS = local_config.get("db_dirs")
