@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from Django_Blockchain import NODES, BLOCK_DIFFICULTY
-from blockchain.apps import blockchain
+from blockchain.apps import blockchain, node_register
 from blockchain.core.blockchain import Block
 from blockchain.core.transaction import Transaction
 
@@ -48,6 +48,7 @@ def register_nodes(request):
 
     if node.startswith('http') and node not in NODES:
         NODES.append(node)
+        node_register(node)
 
     return HttpResponse(status=200)
 

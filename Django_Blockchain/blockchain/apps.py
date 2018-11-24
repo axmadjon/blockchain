@@ -5,11 +5,20 @@ from threading import Thread
 import requests as http
 from django.apps import AppConfig
 
-from Django_Blockchain import NODES
+from Django_Blockchain import NODES, REGISTER_NODE
 from blockchain.core.blockchain import Blockchain
 from blockchain.util import print_exception
 
 blockchain = None
+
+
+def node_register(register_node=REGISTER_NODE):
+    try:
+        json_register = {'node', register_node}
+        for node in NODES:
+            http.post('{}/{}'.format(node, 'node&register_nodes'), json=json_register)
+    except:
+        print_exception("register_node")
 
 
 def node_sync(thread_start=False):
@@ -29,6 +38,9 @@ def node_sync(thread_start=False):
         for node in all_nodes:
             if node.startswith('http') and node not in NODES:
                 NODES.append(node)
+                node_register(node)
+    else:
+        node_register()
 
     Thread(target=node_sync, args=(True,)).start()
 
