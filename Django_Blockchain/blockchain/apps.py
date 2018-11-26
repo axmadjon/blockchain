@@ -14,7 +14,7 @@ blockchain = None
 
 def node_register(register_node=REGISTER_NODE):
     try:
-        json_register = {'node', register_node}
+        json_register = {'node': register_node}
         for node in NODES:
             http.post('{}/{}'.format(node, 'node&register_nodes'), json=json_register)
     except:
@@ -25,21 +25,26 @@ def node_sync(thread_start=False):
     if thread_start:
         time.sleep(5 * 60)
 
-        all_nodes = []
+    all_nodes = []
 
-        for node in NODES:
-            try:
-                response = http.get('{}/{}'.format(node, 'node&load_nodes'))
-                if response.ok:
-                    all_nodes += json.loads(response.text)
-            except:
-                print_exception()
+    for node in NODES:
+        try:
+            response = http.get('{}/{}'.format(node, 'node&load_nodes'))
+            if response.ok:
+                all_nodes += json.loads(response.text)
+        except:
+            print_exception()
 
-        for node in all_nodes:
-            if node.startswith('http') and node not in NODES:
-                NODES.append(node)
-                node_register(node)
-    else:
+    all_nodes = [item for item in all_nodes if
+                 node.startswith('http') and
+                 node not in NODES and
+                 (len(REGISTER_NODE) == 0 or node != REGISTER_NODE)]
+
+    for node in all_nodes:
+        NODES.append(node)
+        node_register(node)
+
+    if not thread_start:
         node_register()
 
     Thread(target=node_sync, args=(True,)).start()

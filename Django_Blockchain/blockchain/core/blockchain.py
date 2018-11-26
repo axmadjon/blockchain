@@ -140,7 +140,7 @@ class Blockchain:
                 with open('{}/{}'.format(DATABASE_DIRS, file), 'r') as file_json:
                     block_json = json.load(file_json)
                     block = Block.parse(block_json)
-                    self.add_block(block)
+                    self.add_block(block, False)
 
             print('success load in database')
 
@@ -170,7 +170,7 @@ class Blockchain:
         except:
             print_exception('Blockchain.save_block_database')
 
-    def add_block(self, block):
+    def add_block(self, block, with_send_all):
         if not isinstance(block, Block):
             return False
 
@@ -183,8 +183,13 @@ class Blockchain:
 
         if self.last_chain().index == (block.index - 1) \
                 and block.is_valid() and block.pow():
+            print('add new block : {}'.format(block.block_hash))
             self.chains.append(block)
             self.save_block_database(block)
+
+            if with_send_all:
+                self.send_block_all_nodes(block)
+
             return True
 
         return False
@@ -212,10 +217,7 @@ class Blockchain:
         if new_block.start_find_pow(lambda: self.last_chain()):
             if BLOCK_SECOND <= int(time.time()) - int(last_block.timestamp / 1000.0):
                 self.synchronization()
-                if self.add_block(new_block):
-
-                    self.send_block_all_nodes(new_block)
-
+                if self.add_block(new_block, True):
                     for index in removing_txs:
                         self.unconfirmed_transaction.pop(index)
                 else:
@@ -244,7 +246,7 @@ class Blockchain:
             except:
                 print_exception('Blockchain.synchronization')
         try:
-            if large_block.index > last_block.index:
+            if large_block and large_block.index > last_block.index:
                 self.load_all_blocks(large_node)
         except:
             print_exception("Blockchain.synchronization.load_all_blocks")
@@ -256,7 +258,7 @@ class Blockchain:
                 return
 
             for item in [Block.parse(item) for item in json.loads(resp.text)]:
-                if not self.add_block(item):
+                if not self.add_block(item, False):
                     print('node block not added in blockchain, block have problem')
                     return
         except:
@@ -269,7 +271,7 @@ class Blockchain:
 
         block_json = json.loads(block.to_json())
         for nod in NODES:
-            Thread(target=self.send_block, args=(nod, block_json))
+            Thread(target=self.send_block, args=(nod, block_json)).start()
 
     def send_block(self, node, block_json, callback=None):
         try:

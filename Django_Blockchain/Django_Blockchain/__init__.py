@@ -9,6 +9,8 @@ PROP_PATH = os.path.join(BASE_DIR, '.properties')
 NODES = []
 REGISTER_NODE = ''
 DATABASE_DIRS = os.path.join(BASE_DIR, 'db_blockchain')
+ALLOW_HOSTS_LIST = ['localhost']
+RUN_DEBUG = True
 
 BLOCK_SECOND = 30
 BLOCK_TRANSACTION = 10
@@ -21,7 +23,9 @@ if not os.path.exists(PROP_PATH):
                 "register_node=\n\n"
 
                 "[LOCAL]\n"
-                "db_dirs={}\n\n"
+                "db_dirs={}\n"
+                "allow_host=\n"
+                "run_debug=Y\n\n"
 
                 "[SETTING]\n"
                 "block_second=30\n"
@@ -38,13 +42,15 @@ else:
 
     local_config = dict(config.items("LOCAL"))
     DATABASE_DIRS = local_config.get("db_dirs")
+    ALLOW_HOSTS_LIST = [item.strip() for item in local_config.get('allow_host').split('|')]
+    RUN_DEBUG = local_config.get("run_debug") == 'Y'
 
     media_config = dict(config.items("SETTING"))
     BLOCK_SECOND = int(media_config.get("block_second", BLOCK_SECOND))
     BLOCK_TRANSACTION = int(media_config.get("block_transaction"))
     BLOCK_DIFFICULTY = int(media_config.get("block_difficulty"))
 
-NODES = [node for node in NODES if node.startswith('http')]
+NODES = [node for node in NODES if node.startswith('http') and (len(REGISTER_NODE) == 0 or node != REGISTER_NODE)]
 
 if not os.path.exists(DATABASE_DIRS):
     os.makedirs(DATABASE_DIRS)

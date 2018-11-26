@@ -1,6 +1,6 @@
 from django.conf.urls import url
 
-from blockchain.views import load_nodes, load_last_block, load_blocks, add_transaction, add_new_block,register_nodes
+from blockchain.views import load_nodes, load_last_block, load_blocks, add_transaction, add_new_block, register_nodes
 
 urlpatterns = [
     url(r'^&load_nodes', load_nodes),

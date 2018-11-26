@@ -3,7 +3,7 @@ import json
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from Django_Blockchain import NODES, BLOCK_DIFFICULTY
+from Django_Blockchain import NODES, REGISTER_NODE, BLOCK_DIFFICULTY
 from blockchain.apps import blockchain, node_register
 from blockchain.core.blockchain import Block
 from blockchain.core.transaction import Transaction
@@ -11,18 +11,18 @@ from blockchain.core.transaction import Transaction
 
 def check_and_add_block(block, recall=False):
     if block.difficulty < BLOCK_DIFFICULTY:
-        return HttpResponse('E', status=200)
+        return HttpResponse('E', status=400)
 
-    if blockchain.add_block(block):
+    if blockchain.add_block(block, False):
         return HttpResponse('S', status=200)
 
     if recall:
-        return HttpResponse('E', status=200)
+        return HttpResponse('E', status=400)
 
     last_block = blockchain.last_chain()
 
     if last_block.index >= block.index:
-        return HttpResponse('E', status=200)
+        return HttpResponse('E', status=400)
 
     elif last_block.index < block.index:
         blockchain.synchronization()
@@ -46,7 +46,9 @@ def register_nodes(request):
     node_conf = json.loads(request.body)
     node = node_conf['node']
 
-    if node.startswith('http') and node not in NODES:
+    if node.startswith('http') and \
+                    node not in NODES and \
+            (len(REGISTER_NODE) == 0 or node != REGISTER_NODE):
         NODES.append(node)
         node_register(node)
 
