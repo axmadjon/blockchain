@@ -12,7 +12,8 @@ DATABASE_DIRS = os.path.join(BASE_DIR, 'db_blockchain')
 ALLOW_HOSTS_LIST = ['localhost']
 RUN_DEBUG = True
 
-BLOCK_SECOND = 30
+TIMESTAMP_TZ = 'Asia/Tashkent'
+# BLOCK_SECOND = 30
 BLOCK_TRANSACTION = 10
 BLOCK_DIFFICULTY = 6
 
@@ -28,6 +29,7 @@ if not os.path.exists(PROP_PATH):
                 "run_debug=Y\n\n"
 
                 "[SETTING]\n"
+                "timestamp_tz=Asia/Tashkent\n"
                 "block_second=30\n"
                 "block_difficulty=6\n"
                 "block_transaction=10".format(DATABASE_DIRS))
@@ -46,7 +48,8 @@ else:
     RUN_DEBUG = local_config.get("run_debug") == 'Y'
 
     media_config = dict(config.items("SETTING"))
-    BLOCK_SECOND = int(media_config.get("block_second", BLOCK_SECOND))
+    TIMESTAMP_TZ = media_config.get("timestamp_tz", TIMESTAMP_TZ)
+    # BLOCK_SECOND = int(media_config.get("block_second", BLOCK_SECOND))
     BLOCK_TRANSACTION = int(media_config.get("block_transaction"))
     BLOCK_DIFFICULTY = int(media_config.get("block_difficulty"))
 

@@ -2,12 +2,14 @@ import json
 import os
 import sys
 import time
+from datetime import datetime
 from hashlib import sha256
 from threading import Thread
 
+import pytz
 import requests as http
 
-from Django_Blockchain import NODES, DATABASE_DIRS, BLOCK_TRANSACTION, BLOCK_DIFFICULTY, BLOCK_SECOND
+from Django_Blockchain import NODES, DATABASE_DIRS, BLOCK_TRANSACTION, BLOCK_DIFFICULTY, TIMESTAMP_TZ
 from blockchain.core.transaction import Transaction, QueueTransaction
 from blockchain.util import print_exception
 
@@ -46,7 +48,7 @@ class Block:
         self.difficulty = BLOCK_DIFFICULTY
 
         self.__transaction = list()
-        self.timestamp = time.time() * 1000.0
+        self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
         self.block_hash = ""
         self.nonce = 0
 
@@ -100,7 +102,7 @@ class Block:
 
         for nonce in range(sys.maxsize):
             self.nonce = nonce
-            self.timestamp = int(time.time() * 1000.0)
+            self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
 
             if nonce % 100000 == 0:
                 last_block = load_last_block()
@@ -187,8 +189,8 @@ class Blockchain:
         if last_block.index == block.index and last_block.block_hash == block.block_hash:
             return True
 
-        if last_block.index != 0 and BLOCK_SECOND > int(time.time()) - int(last_block.timestamp / 1000.0):
-            return False
+        # if last_block.index != 0 and BLOCK_SECOND > int(time.time()) - int(last_block.timestamp / 1000.0):
+        #     return False
 
         if self.last_chain().index == (block.index - 1) \
                 and block.is_valid() and block.pow() and block.transaction_valid():
@@ -225,13 +227,12 @@ class Blockchain:
                     break
 
             if new_block.start_find_pow(lambda: self.last_chain()):
-                if BLOCK_SECOND <= int(time.time()) - int(last_block.timestamp / 1000.0):
-                    self.synchronization()
-                    if self.add_block(new_block, True):
-                        for tx in removing_txs:
-                            self.unconfirmed_transaction.remove(tx)
-                    else:
-                        print('cannot add block in chain')
+                self.synchronization()
+                if self.add_block(new_block, True):
+                    for tx in removing_txs:
+                        self.unconfirmed_transaction.remove(tx)
+                else:
+                    print('cannot add block in chain')
             else:
                 print('not find block hash')
         except:

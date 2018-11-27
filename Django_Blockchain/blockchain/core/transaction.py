@@ -1,11 +1,15 @@
-import json
-from hashlib import sha256
-from time import time
 import base64
-from blockchain.util import print_exception
-from Crypto.PublicKey import RSA
+import json
+from datetime import datetime
+from hashlib import sha256
+
+import pytz
 from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
+
+from Django_Blockchain import TIMESTAMP_TZ
+from blockchain.util import print_exception
 
 TRANSACTION_QUEUE = "Q"
 
@@ -39,7 +43,7 @@ class QueueTransaction(Transaction):
             queue_number=json['queue_number'],
             public_key_b64=json['public_key_b64'],
             signature_b64=json['signature_b64'])
-        transaction.timestamp = json.get('timestamp', int(time() * 1000.0))
+        transaction.timestamp = json.get('timestamp', str(datetime.now(pytz.timezone(TIMESTAMP_TZ))))
         return transaction
 
     def to_json(self):
@@ -57,7 +61,7 @@ class QueueTransaction(Transaction):
     def __init__(self, passport_serial, queue_number, public_key_b64, signature_b64):
         super().__init__(TRANSACTION_QUEUE)
 
-        self.timestamp = int(time() * 1000.0)
+        self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
         self.passport_serial = passport_serial
         self.queue_number = queue_number
 

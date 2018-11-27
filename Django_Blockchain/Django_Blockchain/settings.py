@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
-from Django_Blockchain import ALLOW_HOSTS_LIST, RUN_DEBUG
+from Django_Blockchain import ALLOW_HOSTS_LIST, RUN_DEBUG, TIMESTAMP_TZ
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,7 +102,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = TIMESTAMP_TZ
 
 USE_I18N = True
 
