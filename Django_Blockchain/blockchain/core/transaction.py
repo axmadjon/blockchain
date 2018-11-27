@@ -1,6 +1,11 @@
 import json
 from hashlib import sha256
 from time import time
+import base64
+from blockchain.util import print_exception
+from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
 
 TRANSACTION_QUEUE = "Q"
 
@@ -16,6 +21,9 @@ class Transaction:
     def __init__(self, tx_type):
         self.tx_type = tx_type
 
+    def verify(self):
+        return True
+
     def hash_tx(self):
         return sha256(self.tx_type).hexdigest()
 
@@ -26,9 +34,12 @@ class Transaction:
 class QueueTransaction(Transaction):
     @staticmethod
     def parse(json):
-        transaction = QueueTransaction(passport_serial=json['passport_serial'],
-                                       queue_number=json['queue_number'])
-        transaction.timestamp = json['timestamp']
+        transaction = QueueTransaction(
+            passport_serial=json['passport_serial'],
+            queue_number=json['queue_number'],
+            public_key_b64=json['public_key_b64'],
+            signature_b64=json['signature_b64'])
+        transaction.timestamp = json.get('timestamp', int(time() * 1000.0))
         return transaction
 
     def to_json(self):
@@ -37,14 +48,37 @@ class QueueTransaction(Transaction):
             'timestamp': self.timestamp,
             'passport_serial': self.passport_serial,
             'queue_number': self.queue_number,
+
+            'public_key_b64': self.public_key_b64,
+            'public_key_hash': self.public_key_hash,
+            'signature_b64': self.signature_b64,
         })
 
-    def __init__(self, passport_serial, queue_number):
+    def __init__(self, passport_serial, queue_number, public_key_b64, signature_b64):
         super().__init__(TRANSACTION_QUEUE)
 
         self.timestamp = int(time() * 1000.0)
         self.passport_serial = passport_serial
         self.queue_number = queue_number
+
+        self.public_key_b64 = public_key_b64
+        self.public_key_hash = sha256(public_key_b64.encode('utf-8')).hexdigest()
+        self.signature_b64 = signature_b64
+
+    def verify(self):
+        try:
+            transaction_hash = self.hash_tx()
+
+            hash = SHA256.new()
+            hash.update(transaction_hash.encode('utf-8'))
+
+            signature = base64.standard_b64decode(self.signature_b64.encode('utf-8'))
+            public_key = RSA.import_key(base64.standard_b64decode(self.public_key_b64.encode('utf-8')), 'PEM')
+            pkcs1_15.new(public_key).verify(hash, signature)
+            return True
+        except:
+            print_exception('QueueTransaction.verify')
+            return False
 
     def hash_tx(self):
         text = '{}:{}:{}:{}' \

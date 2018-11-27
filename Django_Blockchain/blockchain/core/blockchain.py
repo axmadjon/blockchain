@@ -56,6 +56,9 @@ class Block:
         if not isinstance(previous_hash, str):
             raise Exception('previous_hash is not string')
 
+    def transaction_size(self):
+        return len(self.__transaction)
+
     def add_transaction(self, transaction):
         if not isinstance(transaction, QueueTransaction):
             raise Exception("transaction is not QueueTransaction")
@@ -83,6 +86,12 @@ class Block:
 
     def is_valid(self):
         return self.block_hash.startswith('0' * self.difficulty)
+
+    def transaction_valid(self):
+        for tx in self.__transaction:
+            if not tx.verify():
+                return False
+        return True
 
     def start_find_pow(self, load_last_block=None):
         transaction_list = [tx.hash_tx() for tx in self.__transaction]
@@ -182,8 +191,8 @@ class Blockchain:
             return False
 
         if self.last_chain().index == (block.index - 1) \
-                and block.is_valid() and block.pow():
-            print('add new block : {}'.format(block.block_hash))
+                and block.is_valid() and block.pow() and block.transaction_valid():
+            print('add new block : {} transactions len is {}'.format(block.block_hash, block.transaction_size()))
             self.chains.append(block)
             self.save_block_database(block)
 
@@ -202,28 +211,31 @@ class Blockchain:
         return self.chains[-1]
 
     def mine(self):
-        all_txs = self.unconfirmed_transaction.copy()
-        last_block = self.last_chain()
+        try:
+            all_txs = self.unconfirmed_transaction.copy()
+            last_block = self.last_chain()
 
-        new_block = Block(index=last_block.index + 1, previous_hash=last_block.block_hash)
-        removing_txs = list()
+            new_block = Block(index=last_block.index + 1, previous_hash=last_block.block_hash)
+            removing_txs = list()
 
-        for index, tx in enumerate(all_txs):
-            if new_block.add_transaction(tx):
-                removing_txs.append(tx)
-            else:
-                break
-
-        if new_block.start_find_pow(lambda: self.last_chain()):
-            if BLOCK_SECOND <= int(time.time()) - int(last_block.timestamp / 1000.0):
-                self.synchronization()
-                if self.add_block(new_block, True):
-                    for index in removing_txs:
-                        self.unconfirmed_transaction.pop(index)
+            for tx in all_txs:
+                if new_block.add_transaction(tx):
+                    removing_txs.append(tx)
                 else:
-                    print('cannot add block in chain')
-        else:
-            print('not find block hash')
+                    break
+
+            if new_block.start_find_pow(lambda: self.last_chain()):
+                if BLOCK_SECOND <= int(time.time()) - int(last_block.timestamp / 1000.0):
+                    self.synchronization()
+                    if self.add_block(new_block, True):
+                        for tx in removing_txs:
+                            self.unconfirmed_transaction.remove(tx)
+                    else:
+                        print('cannot add block in chain')
+            else:
+                print('not find block hash')
+        except:
+            print_exception('Blockchain.mine')
 
         Thread(target=self.mine).start()
 

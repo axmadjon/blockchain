@@ -69,8 +69,17 @@ def load_blocks(request):
 @csrf_exempt
 def add_transaction(request):
     transaction = Transaction.parse(json.loads(request.body))
-    blockchain.add_transaction(transaction)
-    return HttpResponse(status=200)
+
+    if transaction.verify():
+        print('add new transaction {} in wait'.format(transaction.hash_tx()))
+        blockchain.add_transaction(transaction)
+        return HttpResponse(status=200)
+
+    else:
+        message = 'cannot add transaction {} is not valid you transaction {}'.format(transaction.hash_tx(),
+                                                                                     transaction.to_json())
+        print(message)
+        return HttpResponse(message, status=400)
 
 
 @csrf_exempt
