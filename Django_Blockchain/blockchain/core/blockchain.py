@@ -130,16 +130,21 @@ class Block:
 class Blockchain:
     def __init__(self):
         self.unconfirmed_transaction = list()
-        self.chains = list()
-        self.chains.append(self.genesis_block())
+        self.__last_valid_block = self.genesis_block()
 
-    def genesis_block(self):
+    @staticmethod
+    def genesis_block():
         new_block = Block(index=0, previous_hash='0')
         new_block.difficulty = 0
         new_block.timestamp = 0
         new_block.block_hash = '0'
         new_block.nonce = 0
         return new_block
+
+    @staticmethod
+    def generate_block_file_name(index):
+        file_name = ('0' * 20) + str(index)
+        return file_name[len(file_name) - 20:] + '.json'
 
     def load_database(self, callback):
         print('load all blocks in database')
@@ -170,8 +175,7 @@ class Blockchain:
     def save_block_database(cls, block):
         try:
             block_json = json.loads(block.to_json())
-            file_name = ('0' * 10) + str(block.index)
-            file_name = file_name[len(file_name) - 10:] + '.json'
+            file_name = cls.generate_block_file_name(block.index)
 
             if not os.path.exists(DATABASE_DIRS):
                 os.makedirs(DATABASE_DIRS)
@@ -189,13 +193,10 @@ class Blockchain:
         if last_block.index == block.index and last_block.block_hash == block.block_hash:
             return True
 
-        # if last_block.index != 0 and BLOCK_SECOND > int(time.time()) - int(last_block.timestamp / 1000.0):
-        #     return False
-
         if self.last_chain().index == (block.index - 1) \
                 and block.is_valid() and block.pow() and block.transaction_valid():
             print('add new block : {} transactions len is {}'.format(block.block_hash, block.transaction_size()))
-            self.chains.append(block)
+            self.__last_valid_block = block
             self.save_block_database(block)
 
             if with_send_all:
@@ -210,7 +211,7 @@ class Blockchain:
         return True
 
     def last_chain(self):
-        return self.chains[-1]
+        return self.__last_valid_block
 
     def mine(self):
         try:

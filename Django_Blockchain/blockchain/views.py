@@ -1,8 +1,10 @@
 import json
+import os
 
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from Django_Blockchain import DATABASE_DIRS
 from Django_Blockchain import NODES, REGISTER_NODE, BLOCK_DIFFICULTY
 from blockchain.apps import blockchain, node_register
 from blockchain.core.blockchain import Block
@@ -33,7 +35,25 @@ def load_blocks_in_blockchain(req_json):
     start_index = req_json['start_index']
     end_index = req_json.get('end_index', blockchain.last_chain().index)
 
-    return [json.loads(block.to_json()) for block in blockchain.chains if start_index < block.index < end_index]
+    result_blocks = list()
+
+    if not os.path.exists(DATABASE_DIRS):
+        return result_blocks
+
+    position = start_index
+
+    for index in range((end_index - start_index) + 1):
+        file_name = blockchain.generate_block_file_name(position)
+        position += 1
+
+        file_path = '{}/{}'.format(DATABASE_DIRS, file_name)
+        if not os.path.exists(file_path):
+            break
+
+        with open(file_path, 'r') as file_json:
+            result_blocks.append(json.load(file_json))
+
+    return result_blocks
 
 
 @csrf_exempt
