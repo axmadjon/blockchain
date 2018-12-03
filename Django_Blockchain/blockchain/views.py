@@ -77,7 +77,8 @@ def register_nodes(request):
 
 @csrf_exempt
 def load_last_block(request):
-    return HttpResponse(blockchain.last_chain().to_json(), content_type='application/json; charset=utf-8', status=200)
+    return HttpResponse(blockchain.last_chain().to_json(with_dumps=True),
+                        content_type='application/json; charset=utf-8', status=200)
 
 
 @csrf_exempt
@@ -91,13 +92,14 @@ def add_transaction(request):
     transaction = Transaction.parse(json.loads(request.body))
 
     if transaction.verify():
-        print('add new transaction {} in wait'.format(transaction.hash_tx()))
+        print('add new transaction {} in wait'.format(transaction.tx_hash))
         blockchain.add_transaction(transaction)
         return HttpResponse(status=200)
 
     else:
-        message = 'cannot add transaction {} is not valid you transaction {}'.format(transaction.hash_tx(),
-                                                                                     transaction.to_json())
+        message = 'cannot add transaction {} is not valid you transaction {}'.format(transaction.tx_hash,
+                                                                                     transaction.to_json(
+                                                                                         with_dumps=True))
         print(message)
         return HttpResponse(message, status=400)
 

@@ -16,23 +16,23 @@ from blockchain.util import print_exception
 
 class Block:
     @staticmethod
-    def parse(json):
-        block = Block(index=json['index'], previous_hash=json['previous_hash'])
-        block.difficulty = json['difficulty']
-        block.timestamp = json['timestamp']
-        block.block_hash = json['block_hash']
-        block.nonce = json['nonce']
+    def parse(block_json):
+        block = Block(index=block_json['index'], previous_hash=block_json['previous_hash'])
+        block.difficulty = block_json['difficulty']
+        block.timestamp = block_json['timestamp']
+        block.block_hash = block_json['block_hash']
+        block.nonce = block_json['nonce']
 
-        for item in json['transactions']:
-            transaction = Transaction.parse(item)
-            if transaction:
+        for tx_json in block_json['transactions']:
+            transaction = Transaction.parse(tx_json)
+            if transaction and transaction.verify():
                 block.__transaction.append(transaction)
 
         return block
 
-    def to_json(self):
-        transactions = [json.loads(item.to_json()) for item in self.__transaction]
-        return json.dumps({
+    def to_json(self, with_dumps):
+        transactions = [item.to_json(with_dumps=False) for item in self.__transaction]
+        block_json = {
             'index': self.index,
             'previous_hash': self.previous_hash,
             'difficulty': self.difficulty,
@@ -40,7 +40,10 @@ class Block:
             'block_hash': self.block_hash,
             'nonce': self.nonce,
             'transactions': transactions
-        })
+        }
+        if with_dumps:
+            return json.dumps(block_json)
+        return block_json
 
     def __init__(self, index, previous_hash):
         self.index = index
@@ -58,8 +61,8 @@ class Block:
         if not isinstance(previous_hash, str):
             raise Exception('previous_hash is not string')
 
-    def transaction_size(self):
-        return len(self.__transaction)
+    def transactions(self):
+        return [tx for tx in self.__transaction]
 
     def add_transaction(self, transaction):
         if not isinstance(transaction, QueueTransaction):
@@ -71,9 +74,13 @@ class Block:
 
         return False
 
-    def pow(self):
+    def proof_of_work(self):
         try:
-            transaction_list = [tx.hash_tx() for tx in self.__transaction]
+            for tx in self.__transaction:
+                if not tx.verify():
+                    return False
+
+            transaction_list = [tx.tx_hash for tx in self.__transaction]
             data_block = json.dumps([self.index,
                                      self.previous_hash,
                                      self.difficulty,
@@ -84,29 +91,26 @@ class Block:
             block_hash = sha256(data_block.encode('utf-8')).hexdigest()
             return block_hash.startswith('0' * self.difficulty)
         except:
+            print_exception('Block.proof_of_work')
             return False
 
-    def is_valid(self):
-        return self.block_hash.startswith('0' * self.difficulty)
-
-    def transaction_valid(self):
-        for tx in self.__transaction:
-            if not tx.verify():
-                return False
-        return True
-
     def start_find_pow(self, load_last_block=None):
-        transaction_list = [tx.hash_tx() for tx in self.__transaction]
+        transaction_list = [tx.tx_hash for tx in self.__transaction]
+
+        self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
 
         start = time.time()
+        start_nonce_time = time.time() * 1000.0
 
         for nonce in range(sys.maxsize):
             self.nonce = nonce
-            self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
 
-            if nonce % 100000 == 0:
-                last_block = load_last_block()
-                if last_block.index != self.index - 1:
+            if (time.time() * 1000.0) - start_nonce_time > 1000.0:
+                start_nonce_time = time.time() * 1000.0
+
+                self.timestamp = str(datetime.now(pytz.timezone(TIMESTAMP_TZ)))
+
+                if load_last_block().index != self.index - 1:
                     print('last block has change')
                     return False
 
@@ -119,7 +123,7 @@ class Block:
 
             self.block_hash = sha256(data_block.encode('utf-8')).hexdigest()
 
-            if self.is_valid():
+            if self.block_hash.startswith('0' * self.difficulty):
                 print('block {} mined in {} second => {}'
                       .format(self.index, (time.time() - start), self.block_hash))
                 return True
@@ -147,8 +151,8 @@ class Blockchain:
         return file_name[len(file_name) - 20:] + '.json'
 
     def load_database(self, callback):
-        print('load all blocks in database')
         try:
+            print('################ RESTORE BLOCKS IN DATABASE ################')
             files = [v for v in os.listdir(DATABASE_DIRS) if v.endswith('.json')]
             files.sort()
 
@@ -158,13 +162,11 @@ class Blockchain:
                     block = Block.parse(block_json)
                     self.add_block(block, False)
 
-            print('success load in database')
+            print('################ RESTORE SUCCESS ################\n\n')
 
-            print('load database in server')
-
+            print('################ DOWNLOAD BLOCKS IN NODES ################')
             self.synchronization()
-
-            print('success load database in server')
+            print('################ DOWNLOAD SUCCESS ################\n\n')
 
         except:
             print_exception('Blockchain.load_database')
@@ -174,14 +176,13 @@ class Blockchain:
     @classmethod
     def save_block_database(cls, block):
         try:
-            block_json = json.loads(block.to_json())
             file_name = cls.generate_block_file_name(block.index)
 
             if not os.path.exists(DATABASE_DIRS):
                 os.makedirs(DATABASE_DIRS)
 
             with open('{}/{}'.format(DATABASE_DIRS, file_name), 'w') as file_json:
-                json.dump(block_json, file_json)
+                json.dump(block.to_json(with_dumps=False), file_json)
         except:
             print_exception('Blockchain.save_block_database')
 
@@ -193,9 +194,10 @@ class Blockchain:
         if last_block.index == block.index and last_block.block_hash == block.block_hash:
             return True
 
-        if self.last_chain().index == (block.index - 1) \
-                and block.is_valid() and block.pow() and block.transaction_valid():
-            print('add new block : {} transactions len is {}'.format(block.block_hash, block.transaction_size()))
+        if self.last_chain().index == (block.index - 1) and block.proof_of_work():
+            tx_size = len(block.transactions())
+            print('add new block : {} transactions len is {}'.format(block.block_hash, tx_size))
+
             self.__last_valid_block = block
             self.save_block_database(block)
 
@@ -241,6 +243,7 @@ class Blockchain:
 
         Thread(target=self.mine).start()
 
+    # OPTIMIZE REFACTORING
     def synchronization(self):
         if len(NODES) == 0:
             return
@@ -283,7 +286,7 @@ class Blockchain:
         if len(NODES) == 0:
             return
 
-        block_json = json.loads(block.to_json())
+        block_json = block.to_json(with_dumps=False)
         for nod in NODES:
             Thread(target=self.send_block, args=(nod, block_json)).start()
 
